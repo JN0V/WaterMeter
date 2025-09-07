@@ -4,15 +4,21 @@ A smart water consumption monitoring system using ESP32 and magnetic pulse detec
 
 ## Features
 
-- **Real-time Water Monitoring**: Tracks water consumption with 1-liter precision
-- **24V Pulse Input Protection**: Safe interface for industrial water meter signals
-- **WiFi Connectivity**: Remote monitoring via MQTT
-- **Data Persistence**: Automatic data backup to EEPROM
-- **Daily/Total Consumption**: Tracks both daily and cumulative usage
-- **Flow Rate Calculation**: Real-time flow rate monitoring
-- **Voltage Monitoring**: Input voltage supervision for fault detection
-- **OTA Updates**: Over-the-air firmware updates
-- **DomoticsCore Integration**: Uses proven home automation library
+- **Pulse Detection**: Accurate water consumption measurement from 24V pulse signals
+- **Circuit Protection**: Safe voltage conversion with comprehensive protection circuits
+- **WiFi Connectivity**: Automatic connection and reconnection handling via DomoticsCore
+- **MQTT Integration**: Real-time data publishing to Home Assistant and other systems
+- **Data Persistence**: EEPROM storage with automatic backup and recovery
+- **OTA Updates**: Over-the-air firmware updates via DomoticsCore
+- **Flow Rate Calculation**: Real-time water flow monitoring
+- **Daily Reset**: Automatic daily consumption counter reset at midnight
+- **Status LED**: External LED indicator for system status
+- **Voltage Monitoring**: Input voltage monitoring for fault detection
+- **Debug Interface**: Comprehensive serial debugging output
+- **Counter Management**: Multiple interfaces for initializing/correcting counter values:
+  - **Web Interface**: User-friendly HTML interface at `/counter`
+  - **REST API**: JSON endpoints for integration at `/api/counter`
+  - **MQTT Commands**: Remote control via `watermeter/command` topic
 
 ## Hardware Requirements
 
@@ -104,6 +110,39 @@ pio device monitor
 ```
 
 ## Usage
+
+1. **Power on the ESP32** - The system will start automatically
+2. **Connect to WiFi** - Use DomoticsCore's access point mode at `192.168.4.1` for initial setup
+3. **Configure MQTT** - Set your MQTT broker details in the web interface
+4. **Initialize Counter** - Set the initial counter value using one of the management interfaces
+5. **Monitor consumption** - Data will be published to MQTT topics automatically
+6. **Check status** - Monitor the external LED on GPIO25 for system status
+
+### Counter Management Interfaces
+
+#### Web Interface
+Access the counter management page at: `http://[ESP32_IP]/counter`
+- View current consumption values
+- Set counter to specific value
+- Reset daily counter
+- Reset all counters
+
+#### REST API
+- **GET** `/api/counter` - Get current values (JSON)
+- **POST** `/api/counter` - Set counter value
+  ```json
+  {"value": 1234.5, "reset_daily": false}
+  ```
+
+#### MQTT Commands
+Send commands to topic: `watermeter/command`
+- `SET:1234.5` - Set counter to 1234.5 liters
+- `RESET_DAILY` - Reset daily counter to 0
+- `RESET_ALL` - Reset all counters to 0
+- `STATUS` - Get current status
+
+Responses published to: `watermeter/response`
+
 
 ### MQTT Topics
 
@@ -283,8 +322,8 @@ For issues and questions:
 
 ## Version History
 
-- **v0.1.0** - Initial release
-  - Basic pulse detection
+- **v0.2.0** - Added counter management interfaces (Web UI, REST API, MQTT commands, Serial)
+- **v0.1.0** - Initial release with basic water meter monitoring
   - MQTT integration
   - Data persistence
   - Circuit protection documentation

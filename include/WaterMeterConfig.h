@@ -2,7 +2,7 @@
 #define WATER_METER_CONFIG_H
 
 // Water Meter Configuration
-#define WATER_METER_VERSION "0.1.0"
+#define WATER_METER_VERSION "0.2.0"
 
 // Hardware Configuration
 #define PULSE_INPUT_PIN 2           // GPIO pin for pulse detection (interrupt capable)
@@ -43,11 +43,21 @@
 
 // EEPROM Addresses
 #define EEPROM_SIZE 512
-#define EEPROM_TOTAL_LITERS_ADDR 0      // 4 bytes for total consumption
-#define EEPROM_DAILY_LITERS_ADDR 4      // 4 bytes for daily consumption
-#define EEPROM_LAST_SAVE_TIME_ADDR 8    // 4 bytes for last save timestamp
-#define EEPROM_CONFIG_VERSION_ADDR 12   // 4 bytes for config version
-#define EEPROM_PULSE_COUNT_ADDR 16      // 4 bytes for pulse count
+#define EEPROM_MAGIC_ADDR 0             // 4 bytes for magic number (initialization check)
+#define EEPROM_TOTAL_LITERS_ADDR 4      // 4 bytes for total consumption
+#define EEPROM_DAILY_LITERS_ADDR 8      // 4 bytes for daily consumption
+#define EEPROM_LAST_SAVE_TIME_ADDR 12   // 4 bytes for last save timestamp
+#define EEPROM_CONFIG_VERSION_ADDR 16   // 4 bytes for config version
+#define EEPROM_PULSE_COUNT_ADDR 20      // 4 bytes for pulse count
+
+// EEPROM Magic Number for initialization check
+#define EEPROM_MAGIC_NUMBER 0x12345678
+
+// Web Interface Settings
+#define WEB_COUNTER_PATH "/counter"
+#define API_COUNTER_PATH "/api/counter"
+#define MQTT_COMMAND_TOPIC "watermeter/command"
+#define MQTT_RESPONSE_TOPIC "watermeter/response"
 
 // Error Codes
 #define ERROR_NONE 0
@@ -56,5 +66,6 @@
 #define ERROR_SENSOR_FAULT 3
 #define ERROR_VOLTAGE_OUT_OF_RANGE 4
 #define ERROR_EEPROM_WRITE 5
+#define ERROR_INVALID_COUNTER_VALUE 6
 
 #endif // WATER_METER_CONFIG_H

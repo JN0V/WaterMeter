@@ -28,6 +28,13 @@ void checkSensorHealth();
 float calculateFlowRate();
 void resetDailyCounterIfNeeded();
 void backupData();
+void setupWebInterface();
+void handleCounterWebPage(AsyncWebServerRequest *request);
+void handleCounterAPI(AsyncWebServerRequest *request);
+void handleCounterSet(AsyncWebServerRequest *request);
+void handleCounterSetBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total);
+void handleMQTTCommand(String topic, String message);
+bool setCounterValue(unsigned long newValue, const String& source);
 
 // Interrupt service routine for pulse detection
 void IRAM_ATTR pulseISR() {
@@ -67,6 +74,9 @@ void setup() {
     // Initialize DomoticsCore
     domotics.begin();
     
+    // Setup web interface for counter management
+    setupWebInterface();
+    
     // DomoticsCore handles WiFi, MQTT, and OTA automatically
     // Configuration is done via web interface at 192.168.4.1
     
@@ -87,6 +97,7 @@ void loop() {
     
     // Handle DomoticsCore tasks
     domotics.loop();
+    
     
     // Monitor input voltage
     monitorInputVoltage();
@@ -136,19 +147,47 @@ void loop() {
 void loadDataFromEEPROM() {
     DEBUG_PRINTLN("Loading data from EEPROM...");
     
-    // Read total liters
-    EEPROM.get(EEPROM_TOTAL_LITERS_ADDR, totalLiters);
+    // Check if EEPROM is initialized
+    unsigned long magicNumber;
+    EEPROM.get(EEPROM_MAGIC_ADDR, magicNumber);
     
-    // Read daily liters
-    EEPROM.get(EEPROM_DAILY_LITERS_ADDR, dailyLiters);
-    
-    // Read pulse count
-    EEPROM.get(EEPROM_PULSE_COUNT_ADDR, pulseCount);
-    
-    // Validate data
-    if (totalLiters > 999999999) totalLiters = 0;
-    if (dailyLiters > 999999) dailyLiters = 0;
-    if (pulseCount > 999999999) pulseCount = 0;
+    if (magicNumber != EEPROM_MAGIC_NUMBER) {
+        DEBUG_PRINTLN("EEPROM not initialized, setting default values...");
+        
+        // First time initialization - set all values to zero
+        totalLiters = 0;
+        dailyLiters = 0;
+        pulseCount = 0;
+        
+        // Write magic number and default values to EEPROM
+        EEPROM.put(EEPROM_MAGIC_ADDR, EEPROM_MAGIC_NUMBER);
+        EEPROM.put(EEPROM_TOTAL_LITERS_ADDR, totalLiters);
+        EEPROM.put(EEPROM_DAILY_LITERS_ADDR, dailyLiters);
+        EEPROM.put(EEPROM_PULSE_COUNT_ADDR, pulseCount);
+        EEPROM.put(EEPROM_CONFIG_VERSION_ADDR, (unsigned long)1);
+        EEPROM.commit();
+        
+        DEBUG_PRINTLN("EEPROM initialized with default values");
+    } else {
+        // Read existing values
+        EEPROM.get(EEPROM_TOTAL_LITERS_ADDR, totalLiters);
+        EEPROM.get(EEPROM_DAILY_LITERS_ADDR, dailyLiters);
+        EEPROM.get(EEPROM_PULSE_COUNT_ADDR, pulseCount);
+        
+        // Validate data and reset if corrupted
+        if (totalLiters > 999999999) {
+            DEBUG_PRINTLN("Total liters corrupted, resetting to 0");
+            totalLiters = 0;
+        }
+        if (dailyLiters > 999999) {
+            DEBUG_PRINTLN("Daily liters corrupted, resetting to 0");
+            dailyLiters = 0;
+        }
+        if (pulseCount > 999999999) {
+            DEBUG_PRINTLN("Pulse count corrupted, resetting to 0");
+            pulseCount = 0;
+        }
+    }
     
     DEBUG_PRINTF("Loaded - Total: %lu L, Daily: %lu L, Pulses: %lu\n", 
                  totalLiters, dailyLiters, pulseCount);
@@ -164,16 +203,16 @@ void saveDataToEEPROM() {
     totalLiters = currentTotalLiters;
     dailyLiters += newLiters;
     
-    // Save to EEPROM
+    // Save to EEPROM with magic number
+    EEPROM.put(EEPROM_MAGIC_ADDR, EEPROM_MAGIC_NUMBER);
     EEPROM.put(EEPROM_TOTAL_LITERS_ADDR, totalLiters);
     EEPROM.put(EEPROM_DAILY_LITERS_ADDR, dailyLiters);
     EEPROM.put(EEPROM_PULSE_COUNT_ADDR, pulseCount);
     EEPROM.put(EEPROM_LAST_SAVE_TIME_ADDR, millis());
-    
     EEPROM.commit();
     
-    DEBUG_PRINTF("Saved - Total: %lu L, Daily: %lu L, New: %lu L\n", 
-                 totalLiters, dailyLiters, newLiters);
+    DEBUG_PRINTF("Saved - Total: %lu L, Daily: %lu L, Pulses: %lu\n", 
+                 totalLiters, dailyLiters, pulseCount);
 }
 
 void publishWaterMeterData() {
@@ -302,4 +341,297 @@ void backupData() {
     if (mqtt.connected()) {
         mqtt.publish("watermeter/backup", backupPayload.c_str());
     }
+}
+
+void setupWebInterface() {
+    AsyncWebServer& server = domotics.webServer();
+    
+    // Web interface page
+    server.on(WEB_COUNTER_PATH, HTTP_GET, handleCounterWebPage);
+    
+    // API endpoints
+    server.on(API_COUNTER_PATH, HTTP_GET, handleCounterAPI);
+    server.on(API_COUNTER_PATH, HTTP_POST, handleCounterSet, NULL, handleCounterSetBody);
+    
+    DEBUG_PRINTLN("Web interface setup complete");
+}
+
+void handleCounterWebPage(AsyncWebServerRequest *request) {
+    String html = "<!DOCTYPE html><html><head><title>Water Meter Counter Management</title>";
+    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+    html += "<style>";
+    html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }";
+    html += ".container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }";
+    html += "h1 { color: #2c3e50; text-align: center; }";
+    html += ".info-box { background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 15px 0; }";
+    html += ".form-group { margin: 15px 0; }";
+    html += "label { display: block; margin-bottom: 5px; font-weight: bold; }";
+    html += "input[type=\"number\"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; }";
+    html += "button { background: #3498db; color: white; padding: 12px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 5px; }";
+    html += "button:hover { background: #2980b9; }";
+    html += ".danger { background: #e74c3c; } .danger:hover { background: #c0392b; }";
+    html += ".success { background: #27ae60; } .success:hover { background: #229954; }";
+    html += ".status { padding: 10px; border-radius: 5px; margin: 10px 0; }";
+    html += ".error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }";
+    html += ".ok { background: #e8f5e8; color: #2e7d32; border: 1px solid #c8e6c9; }";
+    html += "</style></head><body>";
+    html += "<div class=\"container\">";
+    html += "<h1>🚰 Water Meter Counter</h1>";
+    html += "<div class=\"info-box\">";
+    html += "<h3>Current Values</h3>";
+    html += "<p><strong>Total Consumption:</strong> <span id=\"totalLiters\">Loading...</span> L</p>";
+    html += "<p><strong>Daily Consumption:</strong> <span id=\"dailyLiters\">Loading...</span> L</p>";
+    html += "<p><strong>Pulse Count:</strong> <span id=\"pulseCount\">Loading...</span></p>";
+    html += "<p><strong>Flow Rate:</strong> <span id=\"flowRate\">Loading...</span> L/min</p>";
+    html += "</div>";
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"newValue\">Set Counter Value (Liters):</label>";
+    html += "<input type=\"number\" id=\"newValue\" placeholder=\"Enter new counter value\" min=\"0\" step=\"0.1\">";
+    html += "</div>";
+    html += "<button onclick=\"setCounter()\">Set Counter Value</button>";
+    html += "<button onclick=\"resetDaily()\" class=\"success\">Reset Daily Counter</button>";
+    html += "<button onclick=\"resetAll()\" class=\"danger\">Reset All Counters</button>";
+    html += "<button onclick=\"refreshData()\">Refresh Data</button>";
+    html += "<div id=\"status\"></div>";
+    html += "<div class=\"info-box\">";
+    html += "<h3>API Usage</h3>";
+    html += "<p><strong>GET</strong> /api/counter - Get current values</p>";
+    html += "<p><strong>POST</strong> /api/counter - Set counter value</p>";
+    html += "<p>Body: {\"value\": 1234.5, \"reset_daily\": false}</p>";
+    html += "</div></div>";
+    
+    // JavaScript functions
+    html += "<script>";
+    html += "function refreshData() {";
+    html += "fetch('/api/counter').then(response => response.json()).then(data => {";
+    html += "document.getElementById('totalLiters').textContent = data.total_liters;";
+    html += "document.getElementById('dailyLiters').textContent = data.daily_liters;";
+    html += "document.getElementById('pulseCount').textContent = data.pulse_count;";
+    html += "document.getElementById('flowRate').textContent = data.flow_rate.toFixed(2);";
+    html += "}).catch(error => showStatus('Error loading data: ' + error, 'error'));";
+    html += "}";
+    
+    html += "function setCounter() {";
+    html += "const value = parseFloat(document.getElementById('newValue').value);";
+    html += "if (isNaN(value) || value < 0) { showStatus('Please enter a valid positive number', 'error'); return; }";
+    html += "fetch('/api/counter', { method: 'POST', headers: {'Content-Type': 'application/json'}, ";
+    html += "body: JSON.stringify({value: value, reset_daily: false}) })";
+    html += ".then(response => response.json()).then(data => {";
+    html += "if (data.success) { showStatus('Counter set to ' + value + ' L successfully', 'ok'); refreshData(); }";
+    html += "else { showStatus('Error: ' + data.message, 'error'); }";
+    html += "}).catch(error => showStatus('Error: ' + error, 'error'));";
+    html += "}";
+    
+    html += "function resetDaily() {";
+    html += "if (!confirm('Reset daily counter to 0?')) return;";
+    html += "fetch('/api/counter', { method: 'POST', headers: {'Content-Type': 'application/json'}, ";
+    html += "body: JSON.stringify({reset_daily: true}) })";
+    html += ".then(response => response.json()).then(data => {";
+    html += "if (data.success) { showStatus('Daily counter reset successfully', 'ok'); refreshData(); }";
+    html += "else { showStatus('Error: ' + data.message, 'error'); }";
+    html += "}).catch(error => showStatus('Error: ' + error, 'error'));";
+    html += "}";
+    
+    html += "function resetAll() {";
+    html += "if (!confirm('Reset ALL counters to 0? This cannot be undone!')) return;";
+    html += "fetch('/api/counter', { method: 'POST', headers: {'Content-Type': 'application/json'}, ";
+    html += "body: JSON.stringify({value: 0, reset_daily: true}) })";
+    html += ".then(response => response.json()).then(data => {";
+    html += "if (data.success) { showStatus('All counters reset successfully', 'ok'); refreshData(); }";
+    html += "else { showStatus('Error: ' + data.message, 'error'); }";
+    html += "}).catch(error => showStatus('Error: ' + error, 'error'));";
+    html += "}";
+    
+    html += "function showStatus(message, type) {";
+    html += "const status = document.getElementById('status');";
+    html += "status.innerHTML = '<div class=\"status ' + type + '\">' + message + '</div>';";
+    html += "setTimeout(() => status.innerHTML = '', 5000);";
+    html += "}";
+    
+    html += "refreshData(); setInterval(refreshData, 30000);";
+    html += "</script></body></html>";
+    
+    request->send(200, "text/html", html);
+}
+
+void handleCounterAPI(AsyncWebServerRequest *request) {
+    float flowRate = calculateFlowRate();
+    
+    String json = "{";
+    json += "\"total_liters\":" + String(totalLiters) + ",";
+    json += "\"daily_liters\":" + String(dailyLiters) + ",";
+    json += "\"pulse_count\":" + String(pulseCount) + ",";
+    json += "\"flow_rate\":" + String(flowRate, 2) + ",";
+    json += "\"uptime\":" + String(millis()) + ",";
+    json += "\"version\":\"" + String(WATER_METER_VERSION) + "\"";
+    json += "}";
+    
+    request->send(200, "application/json", json);
+}
+
+// Global variable to store request body
+String requestBody = "";
+
+void handleCounterSetBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+    // Accumulate body data
+    if (index == 0) {
+        requestBody = "";
+    }
+    
+    for (size_t i = 0; i < len; i++) {
+        requestBody += (char)data[i];
+    }
+}
+
+void handleCounterSet(AsyncWebServerRequest *request) {
+    String response = "{\"success\":false,\"message\":\"Invalid request\"}";
+    
+    if (requestBody.length() > 0) {
+        DEBUG_PRINTLN("Received JSON body: " + requestBody);
+        
+        // Simple JSON parsing for our specific format
+        int valueIndex = requestBody.indexOf("\"value\":");
+        int resetIndex = requestBody.indexOf("\"reset_daily\":");
+        
+        bool valueProcessed = false;
+        bool resetProcessed = false;
+        
+        if (valueIndex != -1) {
+            int valueStart = requestBody.indexOf(":", valueIndex) + 1;
+            int valueEnd = requestBody.indexOf(",", valueStart);
+            if (valueEnd == -1) valueEnd = requestBody.indexOf("}", valueStart);
+            
+            String valueStr = requestBody.substring(valueStart, valueEnd);
+            valueStr.trim();
+            
+            float newValue = valueStr.toFloat();
+            DEBUG_PRINTLN("Parsed value: " + String(newValue));
+            
+            if (newValue >= 0 && newValue <= 999999999) {
+                if (setCounterValue((unsigned long)newValue, "Web API")) {
+                    response = "{\"success\":true,\"message\":\"Counter set to " + String(newValue) + " L\"}";
+                    valueProcessed = true;
+                } else {
+                    response = "{\"success\":false,\"message\":\"Failed to save counter value\"}";
+                }
+            } else {
+                response = "{\"success\":false,\"message\":\"Invalid counter value\"}";
+            }
+        }
+        
+        if (resetIndex != -1) {
+            int resetStart = requestBody.indexOf(":", resetIndex) + 1;
+            int resetEnd = requestBody.indexOf("}", resetStart);
+            if (resetEnd == -1) resetEnd = requestBody.length();
+            
+            String resetStr = requestBody.substring(resetStart, resetEnd);
+            resetStr.trim();
+            resetStr.replace(",", "");
+            DEBUG_PRINTLN("Parsed reset_daily: " + resetStr);
+            
+            if (resetStr.startsWith("true")) {
+                dailyLiters = 0;
+                saveDataToEEPROM();
+                resetProcessed = true;
+                
+                if (valueProcessed) {
+                    response = "{\"success\":true,\"message\":\"Counter set and daily reset\"}";
+                } else {
+                    response = "{\"success\":true,\"message\":\"Daily counter reset\"}";
+                }
+            }
+        }
+        
+        if (!valueProcessed && !resetProcessed) {
+            response = "{\"success\":false,\"message\":\"No valid operation found\"}";
+        }
+        
+        // Clear the body for next request
+        requestBody = "";
+    } else {
+        response = "{\"success\":false,\"message\":\"No request body found\"}";
+    }
+    
+    request->send(200, "application/json", response);
+}
+
+void handleMQTTCommand(String topic, String message) {
+    if (topic == MQTT_COMMAND_TOPIC) {
+        PubSubClient& mqtt = domotics.getMQTTClient();
+        String response = "";
+        
+        if (message.startsWith("SET:")) {
+            String valueStr = message.substring(4);
+            float newValue = valueStr.toFloat();
+            
+            if (newValue >= 0 && newValue <= 999999999) {
+                if (setCounterValue((unsigned long)newValue, "MQTT")) {
+                    response = "SUCCESS:Counter set to " + String(newValue) + " L";
+                } else {
+                    response = "ERROR:Failed to save counter value";
+                }
+            } else {
+                response = "ERROR:Invalid counter value";
+            }
+        }
+        else if (message == "RESET_DAILY") {
+            dailyLiters = 0;
+            saveDataToEEPROM();
+            response = "SUCCESS:Daily counter reset";
+        }
+        else if (message == "RESET_ALL") {
+            if (setCounterValue(0, "MQTT")) {
+                dailyLiters = 0;
+                saveDataToEEPROM();
+                response = "SUCCESS:All counters reset";
+            } else {
+                response = "ERROR:Failed to reset counters";
+            }
+        }
+        else if (message == "STATUS") {
+            float flowRate = calculateFlowRate();
+            unsigned long currentTotalLiters = pulseCount * LITERS_PER_PULSE;
+            response = "STATUS:Total=" + String(currentTotalLiters) + "L,Daily=" + String(dailyLiters) + "L,Flow=" + String(flowRate, 2) + "L/min";
+        }
+        else {
+            response = "ERROR:Unknown command";
+        }
+        
+        if (response.length() > 0 && mqtt.connected()) {
+            mqtt.publish(MQTT_RESPONSE_TOPIC, response.c_str());
+        }
+    }
+}
+
+
+bool setCounterValue(unsigned long newValue, const String& source) {
+    if (newValue > 999999999) {
+        DEBUG_PRINTLN("Counter value too large: " + String(newValue));
+        return false;
+    }
+    
+    // Calculate new pulse count based on desired liter value
+    unsigned long newPulseCount = newValue / LITERS_PER_PULSE;
+    
+    // Update values
+    pulseCount = newPulseCount;
+    totalLiters = newValue;
+    
+    // Update EEPROM with magic number to ensure proper initialization
+    EEPROM.put(EEPROM_MAGIC_ADDR, EEPROM_MAGIC_NUMBER);
+    EEPROM.put(EEPROM_TOTAL_LITERS_ADDR, totalLiters);
+    EEPROM.put(EEPROM_PULSE_COUNT_ADDR, pulseCount);
+    EEPROM.put(EEPROM_DAILY_LITERS_ADDR, dailyLiters);
+    EEPROM.commit();
+    
+    DEBUG_PRINTF("Counter set to %lu L (%lu pulses) by %s\n", newValue, newPulseCount, source.c_str());
+    
+    // Publish update via MQTT
+    PubSubClient& mqtt = domotics.getMQTTClient();
+    if (mqtt.connected()) {
+        String message = "Counter updated to " + String(newValue) + " L by " + source;
+        mqtt.publish("watermeter/counter_update", message.c_str());
+    }
+    
+    return true;
 }
