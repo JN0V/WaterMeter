@@ -2,7 +2,7 @@
 #define WATER_METER_CONFIG_H
 
 // Water Meter Configuration
-#define WATER_METER_VERSION "0.2.0"
+#define WATER_METER_VERSION "0.3.0"
 
 // Hardware Configuration
 #define PULSE_INPUT_PIN 2           // GPIO pin for pulse detection (interrupt capable)
@@ -29,29 +29,16 @@
 #define INPUT_VOLTAGE_MIN 18.0      // Minimum expected input voltage
 #define VOLTAGE_DIVIDER_RATIO 8.2   // Voltage divider ratio (24V -> 3.3V)
 
-// Debug Settings
-#ifdef WATER_METER_DEBUG
-    #define DEBUG_SERIAL_SPEED 115200
-    #define DEBUG_PRINT(x) Serial.print(x)
-    #define DEBUG_PRINTLN(x) Serial.println(x)
-    #define DEBUG_PRINTF(format, ...) Serial.printf(format, ##__VA_ARGS__)
-#else
-    #define DEBUG_PRINT(x)
-    #define DEBUG_PRINTLN(x)
-    #define DEBUG_PRINTF(format, ...)
-#endif
+// Logging Configuration - Using DomoticsCore logging system
+// Log levels controlled by CORE_DEBUG_LEVEL build flag:
+// 0=None, 1=Error, 2=Warning, 3=Info, 4=Debug, 5=Verbose
+// Default level is 3 (Info)
 
-// EEPROM Addresses
-#define EEPROM_SIZE 512
-#define EEPROM_MAGIC_ADDR 0             // 4 bytes for magic number (initialization check)
-#define EEPROM_TOTAL_LITERS_ADDR 4      // 4 bytes for total consumption
-#define EEPROM_DAILY_LITERS_ADDR 8      // 4 bytes for daily consumption
-#define EEPROM_LAST_SAVE_TIME_ADDR 12   // 4 bytes for last save timestamp
-#define EEPROM_CONFIG_VERSION_ADDR 16   // 4 bytes for config version
-#define EEPROM_PULSE_COUNT_ADDR 20      // 4 bytes for pulse count
-
-// EEPROM Magic Number for initialization check
-#define EEPROM_MAGIC_NUMBER 0x12345678
+// Water Meter specific log tags
+#define LOG_WATER_METER "WATER"
+#define LOG_SENSOR      "SENSOR"
+#define LOG_COUNTER     "COUNTER"
+#define LOG_API         "API"
 
 // Web Interface Settings
 #define WEB_COUNTER_PATH "/counter"
@@ -65,7 +52,7 @@
 #define ERROR_MQTT_CONNECTION 2
 #define ERROR_SENSOR_FAULT 3
 #define ERROR_VOLTAGE_OUT_OF_RANGE 4
-#define ERROR_EEPROM_WRITE 5
+#define ERROR_STORAGE_WRITE 5
 #define ERROR_INVALID_COUNTER_VALUE 6
 
 #endif // WATER_METER_CONFIG_H
