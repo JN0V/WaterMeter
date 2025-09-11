@@ -17,6 +17,11 @@ volatile unsigned long lastPulseTime = 0;
 unsigned long dailyLiters = 0;
 static int lastDay = -1;
 
+// ISR flags for logging (avoid logging in interrupt context)
+volatile bool newPulseDetected = false;
+volatile bool pulseIgnored = false;
+volatile unsigned long lastIgnoredTimeDiff = 0;
+
 // DomoticsCore storage
 void loadFromStorage() {
     pulseCount = gCore->storage().getULong("pulse_count", 0);
@@ -35,7 +40,10 @@ void IRAM_ATTR pulseISR() {
     if (currentTime - lastPulseTime > PULSE_DEBOUNCE_MS) {
         pulseCount++;
         lastPulseTime = currentTime;
-        DLOG_D(LOG_SENSOR, "Pulse detected: %lu", pulseCount);
+        newPulseDetected = true;
+    } else {
+        pulseIgnored = true;
+        lastIgnoredTimeDiff = currentTime - lastPulseTime;
     }
 }
 
@@ -55,10 +63,18 @@ void setup() {
     // Setup hardware
     pinMode(PULSE_INPUT_PIN, INPUT_PULLDOWN);
     pinMode(STATUS_LED_PIN, OUTPUT);
+    
+    // Log GPIO setup for debugging
+    DLOG_I(LOG_WATER_METER, "GPIO setup: PULSE_PIN=%d (INPUT_PULLDOWN), LED_PIN=%d", PULSE_INPUT_PIN, STATUS_LED_PIN);
+    DLOG_I(LOG_WATER_METER, "Initial GPIO state: PULSE_PIN=%d", digitalRead(PULSE_INPUT_PIN));
+    
     attachInterrupt(digitalPinToInterrupt(PULSE_INPUT_PIN), pulseISR, RISING);
     
     // Load saved data
     loadFromStorage();
+    
+    // Log initial state for debugging
+    DLOG_I(LOG_WATER_METER, "Initial state after load: pulseCount=%lu, dailyLiters=%lu", pulseCount, dailyLiters);
     
     // Minimal web page to view and override counter
     gCore->webServer().on("/counter", HTTP_GET, [](AsyncWebServerRequest* request){
@@ -188,5 +204,15 @@ void loop() {
     if (pulseCount > 0 && millis() - lastPulseTime < 100) {
         digitalWrite(STATUS_LED_PIN, HIGH);
         ledOnTime = millis();
+    }
+    
+    // Log pulse events
+    if (newPulseDetected) {
+        DLOG_I(LOG_SENSOR, "PULSE detected: count=%lu, time=%lu ms", pulseCount, lastPulseTime);
+        newPulseDetected = false;
+    }
+    if (pulseIgnored) {
+        DLOG_D(LOG_SENSOR, "Pulse ignored (debounce): time_diff=%lu ms", lastIgnoredTimeDiff);
+        pulseIgnored = false;
     }
 }

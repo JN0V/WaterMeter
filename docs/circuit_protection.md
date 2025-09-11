@@ -14,27 +14,26 @@ This document describes the circuit protection required to safely interface a 24
 
 ### Protection Circuit Components
 
-#### 1. Voltage Divider with Zener Protection
+#### 1. Voltage Divider (Simple Protection)
 
 ```
-24V Pulse ----[R1: 22kΩ]----+----[R2: 3.3kΩ]---- GND
+24V Pulse ----[R1: 10kΩ]----+----[R2: 1kΩ]---- GND
                              |
                              +---- ESP32 GPIO Pin
                              |
-                        [Zener 3.6V]
-                             |
-                            GND
+                             +----[R3: 220Ω]----[LED]---- GND
 ```
 
 **Component Values:**
-- R1: 22kΩ (1/4W, 5% tolerance)
-- R2: 3.3kΩ (1/4W, 5% tolerance)  
-- Zener Diode: 3.6V, 500mW (BZX79C3V6 or equivalent)
+- R1: 10kΩ (1/4W, 5% tolerance)
+- R2: 1kΩ (1/4W, 5% tolerance)  
+- R3: 220Ω (1/4W, 5% tolerance) - LED current limiting resistor (optional)
+- LED: Standard 5mm LED (red/green/blue, any color) - optional status indicator
 - Optional: 100nF ceramic capacitor parallel to R2 for noise filtering
 
 **Voltage Calculation:**
 - Vout = Vin × (R2 / (R1 + R2))
-- Vout = 24V × (3.3kΩ / (22kΩ + 3.3kΩ)) = 3.13V
+- Vout = 24V × (1kΩ / (10kΩ + 1kΩ)) = 2.18V
 
 #### 2. Optocoupler Isolation (Recommended for Industrial Applications)
 
@@ -59,12 +58,16 @@ This document describes the circuit protection required to safely interface a 24
    - Connect ESP32 GND to breadboard negative rail
 
 2. **Voltage Divider Assembly:**
-   - Place R1 (22kΩ) between 24V input and junction point
-   - Place R2 (3.3kΩ) between junction point and GND
+   - Place R1 (10kΩ) between 24V input and junction point
+   - Place R2 (1kΩ) between junction point and GND
    - Connect junction point to ESP32 GPIO2 (interrupt capable)
 
-3. **Protection:**
-   - Connect Zener diode (3.6V) from GPIO line to GND (cathode to GPIO)
+3. **Status LED (Optional Visual Pulse Indicator):**
+   - Connect R3 (220Ω) from junction point to LED anode
+   - Connect LED cathode to GND
+   - LED will light up when pulse is active
+
+4. **Optional Filtering:**
    - Add 100nF capacitor parallel to R2 for noise filtering
 
 #### Method 2: Optocoupler (Isolated)
@@ -88,7 +91,6 @@ This document describes the circuit protection required to safely interface a 24
 
 ### Component Ratings
 - Ensure all resistors are rated for at least 1/4W power dissipation
-- Zener diode should handle at least 500mW
 - Use components with appropriate voltage ratings (>30V for 24V side)
 
 ### Testing Procedure
@@ -97,8 +99,8 @@ This document describes the circuit protection required to safely interface a 24
    ```
    Multimeter Test Points:
    - 24V input: Should read 24V ±2V
-   - GPIO input: Should read 0V (no pulse) to 3.1-3.3V (pulse active)
-   - Never exceed 3.6V on GPIO pin
+   - GPIO input: Should read 0V (no pulse) to 2.18V (pulse active)
+   - Never exceed 3.3V on GPIO pin
    ```
 
 2. **Pulse Detection Test:**
@@ -129,22 +131,21 @@ This document describes the circuit protection required to safely interface a 24
 3. **Voltage Too High/Low:**
    - Recalculate voltage divider values
    - Check component tolerances
-   - Verify Zener diode is functioning
+   - Verify resistor values are correct
 
 ### Component Substitutions
 
 | Original | Alternative | Notes |
 |----------|-------------|-------|
-| 22kΩ | 20kΩ-27kΩ | Adjust R2 accordingly |
-| 3.3kΩ | 3.0kΩ-3.6kΩ | Maintain ~8:1 ratio |
+| 200kΩ | 100kΩ + 100kΩ in series | Use two 100kΩ resistors |
+| 200kΩ | 1MΩ + adjust R2 to 5kΩ | Maintains ~20:1 ratio |
+| 10kΩ | 5kΩ + 5kΩ in series | Use two 5kΩ resistors |
 | PC817 | 4N35, 6N137 | Verify pinout differences |
-| BZX79C3V6 | 1N4728A | 3.3V Zener alternative |
 
 ## Schematic Symbols
 
 ```
 Resistor:     ----[R]----
-Zener:        ----[Z]----  (with arrow pointing to cathode)
 Optocoupler:  [LED>|<Transistor]
 Capacitor:    ----||----
 ```
@@ -152,9 +153,8 @@ Capacitor:    ----||----
 ## Bill of Materials
 
 ### Method 1 (Voltage Divider)
-- 1× 22kΩ resistor, 1/4W, 5%
-- 1× 3.3kΩ resistor, 1/4W, 5%
-- 1× 3.6V Zener diode, 500mW
+- 1× 10kΩ resistor, 1/4W, 5%
+- 1× 1kΩ resistor, 1/4W, 5%
 - 1× 100nF ceramic capacitor (optional)
 - 1× 220Ω resistor, 1/4W, 5% (for status LED)
 - 1× LED (3mm or 5mm, any color)
