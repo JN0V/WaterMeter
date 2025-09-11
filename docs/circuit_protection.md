@@ -1,82 +1,79 @@
-# Circuit Protection for 24V Water Meter Pulse Input
+# Water Meter Sensor Connection
 
 ## Overview
 
-This document describes the circuit protection required to safely interface a 24V pulse signal from a water meter to an ESP32 microcontroller operating at 3.3V logic levels.
+This document describes how to connect a water meter sensor with ESP32-compatible voltage levels (3.5V/0.2V) directly to an ESP32 microcontroller.
 
 ## Circuit Requirements
 
 ### Input Signal Characteristics
-- **Voltage**: 24V DC pulse signal
+- **Voltage**: 3.5V (active) / 0.2V (inactive) - ESP32 compatible levels
 - **Pulse Duration**: Typically 50-200ms per liter
 - **Pulse Frequency**: Variable based on water flow rate
-- **Signal Type**: Magnetic reed switch or hall effect sensor
+- **Signal Type**: Hall effect sensor with built-in voltage regulation
 
-### Protection Circuit Components
+### Connection Method
 
-#### 1. Voltage Divider (Simple Protection)
+#### Direct Connection (No Protection Needed)
 
 ```
-24V Pulse ----[R1: 10kΩ]----+----[R2: 1kΩ]---- GND
-                             |
-                             +---- ESP32 GPIO Pin
-                             |
-                             +----[R3: 220Ω]----[LED]---- GND
+Sensor Signal ----+---- ESP32 GPIO Pin
+                  |
+                  +----[R1: 220Ω]----[LED]---- GND (optional status indicator)
+
+Sensor GND -------+---- ESP32 GND
 ```
 
 **Component Values:**
-- R1: 10kΩ (1/4W, 5% tolerance)
-- R2: 1kΩ (1/4W, 5% tolerance)  
-- R3: 220Ω (1/4W, 5% tolerance) - LED current limiting resistor (optional)
+- R1: 220Ω (1/4W, 5% tolerance) - LED current limiting resistor (optional)
 - LED: Standard 5mm LED (red/green/blue, any color) - optional status indicator
-- Optional: 100nF ceramic capacitor parallel to R2 for noise filtering
+- Optional: 100nF ceramic capacitor from GPIO to GND for noise filtering
 
-**Voltage Calculation:**
-- Vout = Vin × (R2 / (R1 + R2))
-- Vout = 24V × (1kΩ / (10kΩ + 1kΩ)) = 2.18V
+**Signal Levels:**
+- High (pulse active): 3.5V - Safe for ESP32 (below 3.6V absolute maximum)
+- Low (no pulse): 0.2V - Clean logic low for ESP32
 
-#### 2. Optocoupler Isolation (Recommended for Industrial Applications)
+#### Alternative: Optocoupler Isolation (For Noisy Environments)
 
 ```
-24V Pulse ----[R3: 1kΩ]----[LED]----[Optocoupler]----[R4: 10kΩ]---- 3.3V
-                                          |                    |
-                                         GND              ESP32 GPIO
+Sensor Signal ----[R2: 1kΩ]----[LED]----[Optocoupler]----[R3: 10kΩ]---- 3.3V
+                                              |                    |
+Sensor GND -------------------------------+  GND              ESP32 GPIO
 ```
 
 **Component Values:**
-- R3: 1kΩ current limiting resistor
-- R4: 10kΩ pull-up resistor
+- R2: 1kΩ current limiting resistor
+- R3: 10kΩ pull-up resistor  
 - Optocoupler: PC817, 4N35, or similar
-- Recommended: PC817C for better CTR (Current Transfer Ratio)
+- Note: Only needed in electrically noisy industrial environments
 
 ### Breadboard Implementation
 
-#### Method 1: Voltage Divider (Simple)
+#### Method 1: Direct Connection (Recommended)
 
 1. **Power Rails Setup:**
    - Connect ESP32 3.3V to breadboard positive rail
    - Connect ESP32 GND to breadboard negative rail
 
-2. **Voltage Divider Assembly:**
-   - Place R1 (10kΩ) between 24V input and junction point
-   - Place R2 (1kΩ) between junction point and GND
-   - Connect junction point to ESP32 GPIO2 (interrupt capable)
+2. **Sensor Connection:**
+   - Connect sensor signal wire directly to ESP32 GPIO2 (interrupt capable)
+   - Connect sensor GND wire to ESP32 GND
 
 3. **Status LED (Optional Visual Pulse Indicator):**
-   - Connect R3 (220Ω) from junction point to LED anode
+   - Connect R1 (220Ω) from GPIO2 to LED anode
    - Connect LED cathode to GND
    - LED will light up when pulse is active
 
 4. **Optional Filtering:**
-   - Add 100nF capacitor parallel to R2 for noise filtering
+   - Add 100nF capacitor from GPIO2 to GND for noise filtering
 
-#### Method 2: Optocoupler (Isolated)
+#### Method 2: Optocoupler (For Noisy Environments)
 
-1. **Input Side (24V):**
-   - Connect 24V pulse through 1kΩ resistor to optocoupler LED anode
-   - Connect optocoupler LED cathode to 24V GND
+1. **Input Side (Sensor):**
+   - Connect sensor signal through 1kΩ resistor to optocoupler LED anode
+   - Connect optocoupler LED cathode to sensor GND
 
-2. **Output Side (3.3V):**
+2. **Output Side (ESP32):**
    - Connect optocoupler collector to ESP32 3.3V through 10kΩ pull-up
    - Connect optocoupler emitter to ESP32 GND
    - Connect junction (collector) to ESP32 GPIO2
@@ -84,23 +81,22 @@ This document describes the circuit protection required to safely interface a 24
 ## Safety Considerations
 
 ### Electrical Safety
-- **Never connect 24V directly to ESP32 pins** - this will damage the microcontroller
-- Use proper wire gauge for 24V connections (minimum 22 AWG)
+- Sensor outputs 3.5V max - safe for ESP32 (below 3.6V absolute maximum)
 - Ensure all connections are secure to prevent intermittent faults
 - Use heat shrink tubing or electrical tape on exposed connections
 
 ### Component Ratings
-- Ensure all resistors are rated for at least 1/4W power dissipation
-- Use components with appropriate voltage ratings (>30V for 24V side)
+- LED current limiting resistor: 1/4W sufficient for 220Ω
+- All components operate at low voltage (≤3.5V)
 
 ### Testing Procedure
 
 1. **Voltage Verification:**
    ```
    Multimeter Test Points:
-   - 24V input: Should read 24V ±2V
-   - GPIO input: Should read 0V (no pulse) to 2.18V (pulse active)
-   - Never exceed 3.3V on GPIO pin
+   - Sensor signal: Should read 0.2V (no pulse) to 3.5V (pulse active)
+   - GPIO input: Same as sensor signal (direct connection)
+   - Verify signal is within ESP32 safe range (0-3.6V)
    ```
 
 2. **Pulse Detection Test:**
@@ -152,20 +148,18 @@ Capacitor:    ----||----
 
 ## Bill of Materials
 
-### Method 1 (Voltage Divider)
-- 1× 10kΩ resistor, 1/4W, 5%
-- 1× 1kΩ resistor, 1/4W, 5%
-- 1× 100nF ceramic capacitor (optional)
-- 1× 220Ω resistor, 1/4W, 5% (for status LED)
-- 1× LED (3mm or 5mm, any color)
+### Method 1 (Direct Connection - Recommended)
+- 1× 220Ω resistor, 1/4W, 5% (for optional status LED)
+- 1× LED (3mm or 5mm, any color) - optional
+- 1× 100nF ceramic capacitor (optional noise filtering)
 - Breadboard jumper wires
 
-### Method 2 (Optocoupler)
+### Method 2 (Optocoupler - For Noisy Environments)
 - 1× PC817 optocoupler
 - 1× 1kΩ resistor, 1/4W, 5%
 - 1× 10kΩ resistor, 1/4W, 5%
 - 1× 220Ω resistor, 1/4W, 5% (for status LED)
-- 1× LED (3mm or 5mm, any color)
+- 1× LED (3mm or 5mm, any color) - optional
 - Breadboard jumper wires
 
-**Total Cost:** ~$3-6 USD depending on method chosen
+**Total Cost:** ~$1-4 USD depending on method chosen

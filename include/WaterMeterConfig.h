@@ -5,9 +5,9 @@
 #define WATER_METER_VERSION "0.3.0"
 
 // Hardware Configuration
-#define PULSE_INPUT_PIN 2           // GPIO pin for pulse detection (interrupt capable)
+#define PULSE_INPUT_PIN 34          // GPIO pin for pulse detection (input-only, interrupt capable)
 #define STATUS_LED_PIN 25           // External LED for status indication (avoid conflict with DomoticsCore)
-#define VOLTAGE_DIVIDER_PIN 34      // ADC pin for voltage monitoring (optional)
+// #define VOLTAGE_DIVIDER_PIN 34   // Not needed - sensor has built-in voltage regulation
 
 // Water Meter Settings
 #define LITERS_PER_PULSE 1.0        // Volume per pulse in liters
@@ -24,10 +24,10 @@
 #define MQTT_PUBLISH_INTERVAL 60000     // Publish data every minute
 #define NTP_UPDATE_INTERVAL 3600000     // Update time every hour
 
-// Voltage Protection (for 24V input)
-#define INPUT_VOLTAGE_MAX 30.0      // Maximum expected input voltage
-#define INPUT_VOLTAGE_MIN 18.0      // Minimum expected input voltage
-#define VOLTAGE_DIVIDER_RATIO 8.2   // Voltage divider ratio (24V -> 3.3V)
+// Signal Levels (sensor with built-in voltage regulation)
+#define SIGNAL_HIGH_VOLTAGE 3.5     // High signal level (pulse active)
+#define SIGNAL_LOW_VOLTAGE 0.2      // Low signal level (no pulse)
+#define SIGNAL_THRESHOLD 1.8        // GPIO threshold for reliable detection
 
 // Logging Configuration - Using DomoticsCore logging system
 // Log levels controlled by CORE_DEBUG_LEVEL build flag:
@@ -51,7 +51,7 @@
 #define ERROR_WIFI_CONNECTION 1
 #define ERROR_MQTT_CONNECTION 2
 #define ERROR_SENSOR_FAULT 3
-#define ERROR_VOLTAGE_OUT_OF_RANGE 4
+#define ERROR_SIGNAL_OUT_OF_RANGE 4
 #define ERROR_STORAGE_WRITE 5
 #define ERROR_INVALID_COUNTER_VALUE 6
 

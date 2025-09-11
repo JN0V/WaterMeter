@@ -60,12 +60,14 @@ void setup() {
     
     DLOG_I(LOG_WATER_METER, "Water Meter v%s starting...", WATER_METER_VERSION);
     
-    // Setup hardware
-    pinMode(PULSE_INPUT_PIN, INPUT_PULLDOWN);
+    // Setup hardware - sensor outputs 3.5V/0.2V (ESP32 compatible)
+    // GPIO34 is input-only, no need for pinMode but we'll set it for clarity
+    pinMode(PULSE_INPUT_PIN, INPUT);
     pinMode(STATUS_LED_PIN, OUTPUT);
     
     // Log GPIO setup for debugging
-    DLOG_I(LOG_WATER_METER, "GPIO setup: PULSE_PIN=%d (INPUT_PULLDOWN), LED_PIN=%d", PULSE_INPUT_PIN, STATUS_LED_PIN);
+    DLOG_I(LOG_WATER_METER, "GPIO setup: PULSE_PIN=%d (INPUT), LED_PIN=%d", PULSE_INPUT_PIN, STATUS_LED_PIN);
+    DLOG_I(LOG_WATER_METER, "Sensor signal levels: HIGH=%.1fV, LOW=%.1fV", SIGNAL_HIGH_VOLTAGE, SIGNAL_LOW_VOLTAGE);
     DLOG_I(LOG_WATER_METER, "Initial GPIO state: PULSE_PIN=%d", digitalRead(PULSE_INPUT_PIN));
     
     attachInterrupt(digitalPinToInterrupt(PULSE_INPUT_PIN), pulseISR, RISING);
