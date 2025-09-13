@@ -77,12 +77,16 @@ const char COUNTER_PAGE_HTML[] PROGMEM = R"(
     <div class="card">
         <h1>Water Meter</h1>
         <div class="kv">
-            <span>Total Liters</span>
-            <strong>%TOTAL_LITERS%</strong>
+            <span>Total m&sup3;</span>
+            <strong>%TOTAL_M3%</strong>
         </div>
         <div class="kv">
             <span>Daily Liters</span>
             <strong>%DAILY_LITERS%</strong>
+        </div>
+        <div class="kv">
+            <span>Yearly m&sup3;</span>
+            <strong>%YEARLY_M3%</strong>
         </div>
         <div class="kv">
             <span>Pulses</span>

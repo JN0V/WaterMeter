@@ -2,7 +2,7 @@
 #define WATER_METER_CONFIG_H
 
 // Water Meter Configuration
-#define WATER_METER_VERSION "0.3.0"
+#define WATER_METER_VERSION "0.4.0"
 
 // Hardware Configuration
 #define PULSE_INPUT_PIN 34          // GPIO pin for pulse detection (input-only, interrupt capable)
@@ -11,9 +11,7 @@
 
 // Water Meter Settings
 #define LITERS_PER_PULSE 1.0        // Volume per pulse in liters
-#define PULSE_DEBOUNCE_MS 50        // Debounce time in milliseconds
-#define MIN_PULSE_WIDTH_MS 10       // Minimum pulse width to consider valid
-#define MAX_PULSE_WIDTH_MS 1000     // Maximum pulse width to consider valid
+#define PULSE_DEBOUNCE_MS 500       // Debounce time in milliseconds (for magnetic sensor)
 
 // Data Storage
 #define SAVE_INTERVAL_MS 30000      // Save data every 30 seconds
@@ -24,10 +22,10 @@
 #define MQTT_PUBLISH_INTERVAL 60000     // Publish data every minute
 #define NTP_UPDATE_INTERVAL 3600000     // Update time every hour
 
-// Signal Levels (sensor with built-in voltage regulation)
-#define SIGNAL_HIGH_VOLTAGE 3.5     // High signal level (pulse active)
-#define SIGNAL_LOW_VOLTAGE 0.2      // Low signal level (no pulse)
-#define SIGNAL_THRESHOLD 1.8        // GPIO threshold for reliable detection
+// Signal Levels (magnetic sensor - inverted logic)
+#define SIGNAL_HIGH_VOLTAGE 2.5     // High signal level (magnet away)
+#define SIGNAL_LOW_VOLTAGE 0.5      // Low signal level (magnet passes - pulse active)
+#define SIGNAL_THRESHOLD 1.5        // GPIO threshold for reliable detection
 
 // Logging Configuration - Using DomoticsCore logging system
 // Log levels controlled by CORE_DEBUG_LEVEL build flag:
