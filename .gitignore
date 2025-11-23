@@ -48,3 +48,6 @@ pip-delete-this-directory.txt
 # Backup files
 *.bak
 *.backup
+
+# Personal notes (user-specific, not for community)
+personal_notes/

@@ -1,56 +1,40 @@
 #ifndef WATER_METER_CONFIG_H
 #define WATER_METER_CONFIG_H
 
-// Water Meter Configuration
-#define WATER_METER_VERSION "0.4.0"
+#include <Arduino.h>
 
-// Hardware Configuration
-#define PULSE_INPUT_PIN 34          // GPIO pin for pulse detection (input-only, interrupt capable)
-#define STATUS_LED_PIN 25           // External LED for status indication (avoid conflict with DomoticsCore)
-// #define VOLTAGE_DIVIDER_PIN 34   // Not needed - sensor has built-in voltage regulation
+// Water Meter Version
+#define WATER_METER_VERSION "0.9.2"
 
-// Water Meter Settings
-#define LITERS_PER_PULSE 1.0        // Volume per pulse in liters
-#define PULSE_DEBOUNCE_MS 500       // Debounce time in milliseconds (for magnetic sensor)
-
-// Data Storage
-#define SAVE_INTERVAL_MS 30000      // Save data every 30 seconds
-#define BACKUP_INTERVAL_MS 300000   // Backup data every 5 minutes
-#define MAX_DAILY_RECORDS 288       // Store 5-minute intervals for 24 hours
-
-// Network Configuration
-#define MQTT_PUBLISH_INTERVAL 60000     // Publish data every minute
-#define NTP_UPDATE_INTERVAL 3600000     // Update time every hour
-
-// Signal Levels (magnetic sensor - inverted logic)
-#define SIGNAL_HIGH_VOLTAGE 2.5     // High signal level (magnet away)
-#define SIGNAL_LOW_VOLTAGE 0.5      // Low signal level (magnet passes - pulse active)
-#define SIGNAL_THRESHOLD 1.5        // GPIO threshold for reliable detection
-
-// Logging Configuration - Using DomoticsCore logging system
-// Log levels controlled by CORE_DEBUG_LEVEL build flag:
-// 0=None, 1=Error, 2=Warning, 3=Info, 4=Debug, 5=Verbose
-// Default level is 3 (Info)
+/**
+ * @brief WaterMeter configuration structure
+ * 
+ * Follows DomoticsCore standard configuration pattern.
+ * All configurable parameters with sensible defaults.
+ */
+struct WaterMeterConfig {
+    // Hardware Configuration
+    uint8_t pulseInputPin = 34;        // GPIO pin for pulse detection (input-only, interrupt capable)
+    uint8_t statusLedPin = 32;         // External LED for status indication (GPIO32: high-Z when ESP32 off)
+    
+    // Water Meter Settings
+    float litersPerPulse = 1.0;        // Volume per pulse in liters
+    uint32_t pulseDebounceMs = 500;    // Debounce time in milliseconds (for magnetic sensor)
+    uint32_t pulseHighStableMs = 150;  // Minimum stable HIGH time required before accepting next pulse
+    uint32_t bootInitDelayMs = 3000;   // Boot initialization delay (no pulse counting for 3 seconds)
+    
+    // Timing Configuration
+    uint32_t saveIntervalMs = 30000;   // Save data every 30 seconds
+    uint32_t publishIntervalMs = 5000; // Publish data every 5 seconds
+    uint32_t ledFlashMs = 50;          // LED flash duration
+    
+    // Feature Flags
+    bool enabled = true;               // Enable/disable component
+    bool enableLed = true;             // Enable/disable LED feedback
+};
 
 // Water Meter specific log tags
-#define LOG_WATER_METER "WATER"
-#define LOG_SENSOR      "SENSOR"
-#define LOG_COUNTER     "COUNTER"
-#define LOG_API         "API"
-
-// Web Interface Settings
-#define WEB_COUNTER_PATH "/counter"
-#define API_COUNTER_PATH "/api/counter"
-#define MQTT_COMMAND_TOPIC "watermeter/command"
-#define MQTT_RESPONSE_TOPIC "watermeter/response"
-
-// Error Codes
-#define ERROR_NONE 0
-#define ERROR_WIFI_CONNECTION 1
-#define ERROR_MQTT_CONNECTION 2
-#define ERROR_SENSOR_FAULT 3
-#define ERROR_SIGNAL_OUT_OF_RANGE 4
-#define ERROR_STORAGE_WRITE 5
-#define ERROR_INVALID_COUNTER_VALUE 6
+#define LOG_WATER       "WATER"       // Water meter component logs
+#define LOG_SENSOR      "SENSOR"      // Sensor/pulse detection logs
 
 #endif // WATER_METER_CONFIG_H
