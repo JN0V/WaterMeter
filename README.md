@@ -1,90 +1,76 @@
 # WaterMeter v1.0.0
 
-ESP32-based water meter pulse counter with Home Assistant integration.
+ESP32-based water meter pulse counter with Home Assistant integration, powered by [DomoticsCore](https://github.com/JN0V/DomoticsCore).
 
-**Powered by DomoticsCore v1.2.1** - Full-stack IoT framework with EventBus architecture.
+## Overview
 
-## Features
+This project turns any pulse-output water meter into a smart IoT device. It counts pulses, tracks consumption (Total, Daily, Yearly), and integrates seamlessly with Home Assistant's Energy Dashboard.
 
-- **Pulse counting** with boot protection (3s initialization delay)
-- **MOSFET isolation** (IRLZ24N/34N/44N) - no interference with main system
-- **Multi-period tracking** - Total, daily, yearly counters
-- **Auto-resets** - Daily (midnight) and yearly (Jan 1st) via NTP
-- **NVS storage** - Persistent data with auto-save (30s)
-- **WebUI** - Configuration and monitoring on port 80
-- **Home Assistant** - Auto-discovery via MQTT (12 entities)
-- **Telnet console** - Remote access on port 23
-- **OTA updates** - Secure firmware updates
-- **LED indicators** - System status and pulse feedback
+**Key Features:**
+- **Advanced Pulse Logic:** High-State Stability check eliminates bounce/double-counting (ideal for slow flow).
+- **Isolation Circuit:** MOSFET-based isolation prevents interference with existing meter readers.
+- **Data Safety:** Auto-saves to NVS memory every 30s; auto-recovers after reboot.
+- **Home Assistant:** Zero-config auto-discovery (MQTT). Supports Energy Dashboard natively (state_class: total_increasing).
+- **Web Interface:** Configure network, MQTT, and view real-time stats via browser.
+- **Automated Resets:** Daily (midnight) and Yearly (Jan 1st) counters reset automatically via NTP.
 
-## Hardware
+## Compatible Hardware
 
-- ESP32 dev board
-- MOSFET IRLZ24N/34N/44N (N-channel logic-level)
-- 2x 10kΩ resistors
-- 1x 100nF capacitor
-- Magnetic pulse sensor (3.5V HIGH / 0.2V LOW)
+### Sensors
+Compatible with any **Reed Switch (Dry Contact)** pulse output sensor.
+- **Standard:** 2-wire "Pulse Probe" for water meters (e.g., Gianola, Itron Cyble Sensor 2-wire).
+- **Generic:** Any generic magnetic reed switch.
+- **Signal:** Connects to GPIO via the isolation circuit (see Wiring).
 
-**See [docs/WIRING_GUIDE.md](docs/WIRING_GUIDE.md) for complete circuit diagram**
+### Controller
+- **ESP32 Development Board** (ESP32-WROOM-32 or similar).
+- **Power:** 5V Micro-USB or VIN.
+
+### Isolation Circuit (Required)
+To prevent interference and protect the ESP32, we use a MOSFET buffer:
+- **MOSFET:** IRLZ24N, IRLZ34N, or IRLZ44N (Logic-Level N-Channel)
+- **Resistors:** 2x 10kΩ
+- **Capacitor:** 1x 100nF (Ceramic)
+- **See [docs/WIRING_GUIDE.md](docs/WIRING_GUIDE.md) for the complete schematic.**
 
 ## Quick Start
 
-1. **Wire hardware:** Follow [docs/WIRING_GUIDE.md](docs/WIRING_GUIDE.md)
-2. **Flash:** `pio run -t upload`
-3. **Configure:** Connect to AP `WaterMeter-ESP32-XXXX` at http://192.168.4.1
-4. **Test:** Follow [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)
+1. **Build the Circuit:** Follow the [Wiring Guide](docs/WIRING_GUIDE.md).
+2. **Flash Firmware:**
+   ```bash
+   pio run -t upload
+   ```
+3. **Connect:**
+   - Connect to WiFi AP: `WaterMeter-ESP32-XXXX`
+   - Open `http://192.168.4.1`
+   - Configure WiFi and MQTT settings.
+4. **Home Assistant:**
+   - Enable MQTT integration in HA.
+   - The device will auto-discover 12 entities.
+   - Add `total_liters` or `total_volume` to your **Energy Dashboard** (Water section).
 
 ## Documentation
 
-- **[docs/README.md](docs/README.md)** - Complete documentation index
-- **[docs/WIRING_GUIDE.md](docs/WIRING_GUIDE.md)** - Hardware wiring and MOSFET circuit
-- **[docs/BREADBOARD_LAYOUT.md](docs/BREADBOARD_LAYOUT.md)** - Visual breadboard layout (color-coded)
-- **[docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md)** - Testing procedures and troubleshooting
+- **[Wiring Guide](docs/WIRING_GUIDE.md):** Schematics and breadboard assembly.
+- **[Breadboard Layout](docs/BREADBOARD_LAYOUT.md):** Visual guide for assembly.
+- **[Testing Guide](docs/TESTING_GUIDE.md):** Verification and troubleshooting.
+- **[Pulse Logic](docs/technical/PULSE_LOGIC.md):** Technical details on the anti-bounce algorithm.
+- **[Architecture](docs/ARCHITECTURE.md):** Software design and component interaction.
 
 ## Pinout
 
 | Pin | Function | Notes |
 |-----|----------|-------|
-| GPIO34 | Pulse input | Via MOSFET buffer |
-| GPIO32 | Status LED | High-Z when off |
-| GPIO2 | System LED | DomoticsCore status |
-
-## Home Assistant
-
-**12 auto-discovered entities:**
-- 7 water sensors (total/daily/yearly in m³ and L)
-- 2 system sensors (WiFi, uptime)
-- 3 buttons (reset daily, reset yearly, restart)
-
-**Setup:**
-1. Configure MQTT broker in WebUI
-2. Entities appear automatically in HA
-3. No manual configuration needed
-
-## Build
-
-```bash
-pio run -t upload      # Flash firmware
-pio device monitor     # View serial output
-```
-
-## Console Commands
-
-Telnet port 23:
-- `water` - Show consumption
-- `reset_daily` - Reset daily counter
-- `reset_yearly` - Reset yearly counter
+| **GPIO34** | Pulse Input | Input-only pin. Requires external pull-up (see Wiring). |
+| **GPIO32** | Status LED | Flashes on valid pulse. High-Z when ESP32 is off. |
+| **GPIO2** | System LED | DomoticsCore status (WiFi/MQTT). |
 
 ## Requirements
 
-- PlatformIO
-- DomoticsCore v1.2.1 (auto-installed)
-- ESP32 dev board
+- **PlatformIO** (VSCode extension recommended)
+- **DomoticsCore v1.2.2+** (Automatically installed by PlatformIO)
+- **MQTT Broker** (Mosquitto, EMQX, etc.)
 
 ## License
 
-Open source. See LICENSE file.
-
----
-
-**Full documentation:** [docs/README.md](docs/README.md)
+MIT License. See LICENSE file.

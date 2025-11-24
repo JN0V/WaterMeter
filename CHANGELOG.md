@@ -2,6 +2,26 @@
 
 All notable changes to the WaterMeter project will be documented in this file.
 
+## [0.9.2] - 2025-11-23
+
+### Fixed - Critical Pulse Counting Logic 🧲
+- **High-State Stability Check**: Implemented a new validation logic to eliminate false "double counts" caused by sensor exit bounces during slow water flow.
+  - **Problem**: Standard debounce failed when magnet exited slowly, causing late bounces (>500ms) to be registered as new pulses.
+  - **Solution**: Added `pulseHighStableMs` (150ms) requirement. A pulse is now ONLY validated if the signal was stably HIGH for >150ms prior to the FALLING edge.
+  - **Technical**: Switched ISR interrupt mode from `FALLING` to `CHANGE` to track stability.
+- **Documentation**: Added detailed technical guide `docs/technical/PULSE_LOGIC.md`.
+
+### Changed
+- **Configuration**: Added `pulseHighStableMs` parameter (default 150ms).
+- **Structure**: Moved technical documentation to `docs/technical/` and migration guides to `docs/migration/`.
+- **Version**: Bumped to 0.9.2.
+
+## [0.9.1] - 2025-11-17
+### Added
+- Initial implementation of `WaterMeterComponent` with DomoticsCore v1.2.1.
+- Support for WebUI configuration.
+- MQTT and Home Assistant auto-discovery (EventBus orchestration).
+
 ## [0.9.0] - 2025-11-11
 
 ### Added - Home Assistant Integration 🏠

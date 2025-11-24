@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // Water Meter Version
-#define WATER_METER_VERSION "0.9.2"
+#define WATER_METER_VERSION "1.0.0"
 
 /**
  * @brief WaterMeter configuration structure

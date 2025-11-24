@@ -1,9 +1,9 @@
 /**
  * @file main.cpp
  * @brief ESP32 Water Meter Application
- * @version 0.9.2
+ * @version 1.0.0
  * 
- * Full-featured IoT water meter using DomoticsCore v1.2.1:
+ * Full-featured IoT water meter using DomoticsCore v1.2.2:
  * - WiFi with AP fallback
  * - WebUI on port 80
  * - MQTT publishing (EventBus-based)
@@ -99,13 +99,17 @@ void setup() {
         DLOG_I(LOG_APP, "Setting up Home Assistant entities...");
         
         // Water meter sensors
-        haPtr->addSensor("total_volume", "Total Water Volume", "m³", "water", "mdi:water-outline");
-        haPtr->addSensor("total_liters", "Total Liters", "L", "water", "mdi:water-outline");
-        haPtr->addSensor("daily_volume", "Daily Consumption", "m³", "water", "mdi:water-outline");
-        haPtr->addSensor("daily_liters", "Daily Liters", "L", "water", "mdi:water-outline");
-        haPtr->addSensor("yearly_volume", "Yearly Consumption", "m³", "water", "mdi:water-pump");
-        haPtr->addSensor("yearly_liters", "Yearly Liters", "L", "water", "mdi:water-pump");
-        haPtr->addSensor("pulse_count", "Total Pulses", "", "", "mdi:counter");
+        // Total counters need "total_increasing" state class for HA Energy Dashboard
+        haPtr->addSensor("total_volume", "Total Water Volume", "m³", "water", "mdi:water-outline", "total_increasing");
+        haPtr->addSensor("total_liters", "Total Liters", "L", "water", "mdi:water-outline", "total_increasing");
+        
+        // Daily/Yearly are also totals that reset, so they are also "total_increasing" (HA handles resets automatically)
+        haPtr->addSensor("daily_volume", "Daily Consumption", "m³", "water", "mdi:water-outline", "total_increasing");
+        haPtr->addSensor("daily_liters", "Daily Liters", "L", "water", "mdi:water-outline", "total_increasing");
+        haPtr->addSensor("yearly_volume", "Yearly Consumption", "m³", "water", "mdi:water-pump", "total_increasing");
+        haPtr->addSensor("yearly_liters", "Yearly Liters", "L", "water", "mdi:water-pump", "total_increasing");
+        
+        haPtr->addSensor("pulse_count", "Total Pulses", "", "", "mdi:counter", "total_increasing");
         
         // System sensors
         haPtr->addSensor("wifi_signal", "WiFi Signal", "dBm", "signal_strength", "mdi:wifi");
